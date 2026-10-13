@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MyTimeLogger
 // @namespace    https://efrag.myprotime.eu/
-// @version      0.6.0
+// @version      0.7.0
 // @description  Bulk project time logging for myProtime
 // @match        https://efrag.myprotime.eu/*
 // @updateURL    https://efrag-eu.github.io/MyTimeLogger/mytimelogger.user.js
@@ -13,7 +13,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '0.6.0';
+  const VERSION = '0.7.0';
   const INSTALL_URL = 'https://efrag-eu.github.io/MyTimeLogger/';
   const UPDATE_REMINDER_MS = 14 * 24 * 60 * 60 * 1000;
   const LAST_UPDATE_CHECK_KEY = 'mytimelogger.lastUpdateCheck';
@@ -26,6 +26,7 @@
   const ABSENCE_MAX_RETRIES = 10;
   const MAX_RANGE_DAYS = 62;
   const CALENDAR_POLL_MS = 1000;
+  const SOURCE_SEARCH_DAYS = 28;
 
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -353,10 +354,131 @@
     return plan;
   }
 
+  const minutesOf = duration => {
+    const match = /^(\d+):(\d{2})$/.exec(duration ?? '');
+    return match ? Number(match[1]) * 60 + Number(match[2]) : 0;
+  };
+  const formatMinutes = minutes => `${Math.floor(minutes / 60)}:${pad(minutes % 60)}`;
+  const totalMinutes = entries => entries.reduce((sum, entry) => sum + minutesOf(entry.duration), 0);
+  const largestEntry = entries => entries.reduce((largest, entry) => (minutesOf(entry.duration) > minutesOf(largest.duration) ? entry : largest));
+  const isWorkingStatus = status => WORKING_TYPE_IDS.has(status.id);
+
+  function expectedMinutes(day) {
+    if (day.statuses.length === 0) return minutesOf(day.scheduledDuration);
+    return day.statuses.filter(isWorkingStatus).reduce((sum, status) => {
+      const durationInDetail = /\((\d+:\d{2})\)/.exec(status.detail ?? '')?.[1];
+      return sum + minutesOf(durationInDetail ?? day.scheduledDuration);
+    }, 0);
+  }
+
+  function checkDay(day) {
+    if (day.isPublicHoliday || day.isLocked) return null;
+    const logged = totalMinutes(day.entries);
+    const expected = expectedMinutes(day);
+    const hours = `${formatMinutes(logged)} of ${formatMinutes(expected)}`;
+
+    if (day.statuses.length === 0) {
+      if (isWeekend(day.date) || (expected === 0 && logged === 0)) return null;
+      return logged > 0
+        ? { kind: 'status', problem: 'No status', fix: 'Set status Working' }
+        : { kind: 'empty', problem: 'No status, no time logged', expected, needsSource: true };
+    }
+    if (logged === expected) return null;
+    if (expected === 0) return { kind: 'dayOff', problem: `${formatMinutes(logged)} logged on a day off`, fix: 'Delete logged time' };
+    if (logged === 0) return { kind: 'copy', problem: `No time logged (${formatMinutes(expected)} expected)`, expected, needsSource: true };
+
+    const largest = largestEntry(day.entries).name;
+    const difference = formatMinutes(Math.abs(expected - logged));
+    return logged < expected
+      ? { kind: 'add', problem: `Too few hours: ${hours}`, minutes: expected - logged, project: largest, fix: `Add ${difference} to ${largest}` }
+      : { kind: 'reduce', problem: `Too many hours: ${hours}`, minutes: logged - expected, fix: `Reduce ${largest} by ${difference}` };
+  }
+
+  const isCompleteWorkingDay = day => day.statuses.some(isWorkingStatus) && day.entries.length > 0 && checkDay(day) === null;
+
+  async function findPreviousCompleteDay(date, expected, loadDay) {
+    for (let daysBack = 1; daysBack <= SOURCE_SEARCH_DAYS; daysBack++) {
+      const day = await loadDay(addDays(date, -daysBack));
+      if (isCompleteWorkingDay(day) && totalMinutes(day.entries) === expected) return day;
+    }
+    return null;
+  }
+
   async function loadOverview({ from, to }, onProgress) {
-    const days = [];
-    await forEachDay(datesBetween(from, to), onProgress, async date => { days.push(await protime.loadDay(date)); });
-    return days;
+    const cache = new Map();
+    const loadDay = async date => {
+      if (!cache.has(date)) cache.set(date, await protime.loadDay(date));
+      return cache.get(date);
+    };
+    const rows = [];
+    await forEachDay(datesBetween(from, to), onProgress, async date => {
+      const day = await loadDay(date);
+      rows.push({ day, check: checkDay(day) });
+    });
+    for (const { day, check } of rows.filter(row => row.check?.needsSource)) {
+      onProgress(`Looking for a complete day to copy to ${formatDay(day.date)}…`);
+      check.source = await findPreviousCompleteDay(day.date, check.expected, loadDay);
+      if (check.source) check.fix = `Copy ${formatDay(check.source.date)}`;
+    }
+    return rows;
+  }
+
+  async function addFix(plan, { day, check }, projectsByName) {
+    const date = day.date;
+    const projectNamed = name => {
+      const project = projectsByName.get(name);
+      if (!project) throw new Error(`Project "${name}" is not in your project list`);
+      return project;
+    };
+
+    switch (check.kind) {
+      case 'status':
+        plan.add(date, 'Set status: Working', () => protime.requestStatus(date, WORKING_TYPE_ID, 'FullDay'));
+        break;
+      case 'empty':
+      case 'copy': {
+        if (check.kind === 'empty') {
+          const status = check.source.statuses.find(isWorkingStatus) ?? WORKING_STATUS;
+          plan.add(date, `Set status: ${status.title}`, () => protime.requestStatus(date, status.id, 'FullDay'));
+        }
+        addCosts(plan, date, resolveProjects(check.source, projectsByName));
+        break;
+      }
+      case 'add': {
+        const project = projectNamed(check.project);
+        const duration = formatMinutes(check.minutes);
+        plan.add(date, `Log ${duration} → ${project.name}`, () => protime.addCost(date, project.id, duration));
+        break;
+      }
+      case 'reduce': {
+        const entries = await protime.loadCostEntries(date);
+        const entry = entries
+          .filter(candidate => minutesOf(candidate.duration) > check.minutes)
+          .sort((a, b) => minutesOf(b.duration) - minutesOf(a.duration))[0];
+        if (!entry) throw new Error(`No single entry is larger than ${formatMinutes(check.minutes)} – please fix in myProtime`);
+        const project = projectNamed(entry.name);
+        const reduced = formatMinutes(minutesOf(entry.duration) - check.minutes);
+        plan.add(date, `Delete ${entry.name} ${entry.duration}`, () => protime.removeCost(entry.id));
+        plan.add(date, `Log ${reduced} → ${entry.name}`, () => protime.addCost(date, project.id, reduced));
+        break;
+      }
+      case 'dayOff':
+        await addCostRemovals(plan, date);
+        break;
+    }
+  }
+
+  async function planFixes(rows, projectsByName, onProgress) {
+    const plan = new Plan();
+    for (const row of rows) {
+      onProgress(`Preparing fix for ${formatDay(row.day.date)}…`);
+      try {
+        await addFix(plan, row, projectsByName);
+      } catch (error) {
+        plan.skip(row.day.date, error.message);
+      }
+    }
+    return plan;
   }
 
   const STYLE = `
@@ -396,6 +518,11 @@
     th, td { text-align: left; padding: 4px 6px; border-bottom: 1px solid #eee; vertical-align: top; }
     th { color: #666; font-weight: 600; }
     tr.skipped td { color: #999; }
+    tr.problem td { background: #fff8ef; }
+    .problem-text { color: #b45309; font-weight: 600; }
+    button.fix { margin-top: 4px; padding: 3px 9px; border: 1px solid #1f5fa8; border-radius: 4px; background: #fff; color: #1f5fa8;
+      font-size: 12px; cursor: pointer; text-align: left; }
+    button.fix:hover { background: #eef4fb; }
     td.state { white-space: nowrap; }
     td.state.ok { color: #1b7f3b; }
     td.state.failed { color: #b00020; }
@@ -460,6 +587,7 @@
         fields: [...field('From', overviewFrom), ...field('To', overviewTo)],
         buttonLabel: 'Show',
         view: onProgress => loadOverview({ from: overviewFrom.value, to: overviewTo.value }, onProgress),
+        fix: (rows, onProgress) => planFixes(rows, context.projectsByName, onProgress),
       },
       {
         title: 'Log range',
@@ -546,14 +674,21 @@
     return link;
   }
 
-  function overviewTable(days) {
+  function overviewTable(rows, onFix) {
+    const checkCell = row => {
+      if (!row.check) return h('td', { className: 'state ok' }, '✓');
+      const fix = row.check.fix
+        ? h('button', { className: 'fix', onclick: () => onFix([row]) }, row.check.fix)
+        : h('div', { className: 'message' }, 'No day to copy found – please log in myProtime');
+      return h('td', {}, h('div', { className: 'problem-text' }, row.check.problem), fix);
+    };
     return h('table', {},
-      h('tr', {}, h('th', {}, 'Day'), h('th', {}, 'Status'), h('th', {}, 'Logged'), h('th', {}, 'Total')),
-      days.map(day => h('tr', {},
-        h('td', { className: 'nowrap' }, formatDay(day.date)),
-        h('td', {}, day.isPublicHoliday ? 'Public holiday' : describeStatuses(day) || '—'),
-        h('td', {}, day.entries.map(entry => h('div', {}, `${entry.name} ${entry.duration}`))),
-        h('td', {}, day.totalDuration))));
+      h('tr', {}, h('th', {}, 'Day'), h('th', {}, 'Status'), h('th', {}, 'Logged'), h('th', {}, 'Check')),
+      rows.map(row => h('tr', { className: row.check ? 'problem' : '' },
+        h('td', { className: 'nowrap' }, formatDay(row.day.date)),
+        h('td', {}, row.day.isPublicHoliday ? 'Public holiday' : describeStatuses(row.day) || '—'),
+        h('td', {}, row.day.entries.map(entry => h('div', {}, `${entry.name} ${entry.duration}`))),
+        checkCell(row))));
   }
 
   function planTable(plan) {
@@ -652,23 +787,56 @@
         message.classList.toggle('error', isError);
       };
 
-      async function run() {
+      let overviewRows = null;
+
+      async function whileBusy(work) {
+        if (isBusy) return;
         isBusy = true;
         setRunButtonsDisabled(true);
-        result.replaceChildren();
         try {
-          if (tab.view) {
-            result.append(overviewTable(await tab.view(showMessage)));
-            showMessage('');
-          } else {
-            showPlan(await tab.plan(showMessage));
-          }
+          await work();
         } catch (error) {
           showMessage(error.message, true);
         } finally {
           setRunButtonsDisabled(false);
           isBusy = false;
         }
+      }
+
+      function run() {
+        if (tab.view) return showOverview();
+        return whileBusy(async () => {
+          result.replaceChildren();
+          showPlan(await tab.plan(showMessage));
+        });
+      }
+
+      function showOverview(prefix = '') {
+        return whileBusy(async () => {
+          result.replaceChildren();
+          overviewRows = await tab.view(showMessage);
+          renderOverview(prefix);
+        });
+      }
+
+      function renderOverview(prefix = '') {
+        const problems = overviewRows.filter(row => row.check);
+        const fixable = problems.filter(row => row.check.fix);
+        const summary = problems.length === 0
+          ? 'All days are complete.'
+          : `${problems.length} day${problems.length === 1 ? ' needs' : 's need'} attention.`;
+        showMessage(`${prefix}${summary}`);
+        const fixAllButton = fixable.length > 1
+          ? h('div', { className: 'actions' }, h('button', { className: 'primary', onclick: () => fix(fixable) }, `Fix all ${fixable.length} days`))
+          : null;
+        result.replaceChildren(...[fixAllButton, overviewTable(overviewRows, fix)].filter(Boolean));
+      }
+
+      function fix(rows) {
+        return whileBusy(async () => {
+          result.replaceChildren();
+          showPlan(await tab.fix(rows, showMessage));
+        });
       }
 
       function showPlan(plan) {
@@ -693,33 +861,34 @@
       }
 
       function cancel() {
-        result.replaceChildren();
         setRunButtonsHidden(false);
-        showMessage('Cancelled – nothing was changed.');
+        const cancelled = 'Cancelled – nothing was changed.';
+        if (overviewRows) return renderOverview(`${cancelled} `);
+        result.replaceChildren();
+        showMessage(cancelled);
       }
 
       async function execute(plan, stateCells) {
-        isBusy = true;
-        setRunButtonsDisabled(true);
         let failed = 0;
-        for (const [index, action] of plan.actions.entries()) {
-          const cell = stateCells.get(action);
-          cell.textContent = 'saving…';
-          showMessage(`Saving ${index + 1}/${plan.actions.length}…`);
-          try {
-            await action.run();
-            cell.textContent = '✓ done';
-            cell.className = 'state ok';
-          } catch (error) {
-            failed++;
-            cell.textContent = `✗ ${error.message}`;
-            cell.className = 'state failed';
+        await whileBusy(async () => {
+          for (const [index, action] of plan.actions.entries()) {
+            const cell = stateCells.get(action);
+            cell.textContent = 'saving…';
+            showMessage(`Saving ${index + 1}/${plan.actions.length}…`);
+            try {
+              await action.run();
+              cell.textContent = '✓ done';
+              cell.className = 'state ok';
+            } catch (error) {
+              failed++;
+              cell.textContent = `✗ ${error.message}`;
+              cell.className = 'state failed';
+            }
           }
-        }
-        setRunButtonsDisabled(false);
+        });
         setRunButtonsHidden(false);
-        isBusy = false;
         const outcome = failed ? `Finished with ${failed} failed change(s).` : 'All changes saved.';
+        if (tab.view && !failed) return showOverview(`${outcome} `);
         showMessage(`${outcome} Please review the result in the myProtime calendar.`, failed > 0);
       }
 

@@ -23,7 +23,7 @@ created bookmark.
 
 | Tab | What it does |
 |---|---|
-| Overview | Shows status and logged project time for each day in a range. |
+| Overview | Shows status and logged project time for each day and highlights incomplete days: no status, no time logged, too few or too many hours for the status (e.g. 8:00 for a full working day, 4:00 for a half day), or time logged on a day off. Each has a suggested fix (copy the previous complete day, set status *Working*, add/reduce hours, delete time), and **Fix all** fixes every day at once. |
 | Log range | Logs one project for every working day in a range (e.g. a full week), using your scheduled hours unless you enter hours (`7:30` or `7.5`). |
 | Copy day | Copies all project entries of one day to every working day in a range. |
 | Copy week | Copies a full week to the next week (or several following weeks): each day's entries go to the same weekday, days off in the target week are skipped. The **Copy previous week** button copies last week to the current week in one click. |
