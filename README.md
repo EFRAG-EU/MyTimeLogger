@@ -18,7 +18,8 @@ created bookmark.
 1. Open https://efrag.myprotime.eu/ and log in as usual.
 2. Click **Time Logger** in the bookmarks bar. The panel opens at the bottom right; clicking the bookmark
    again hides it. After reloading the myProtime page, click the bookmark again.
-3. Choose a tab, click **Preview**, check the planned actions and click **Execute**.
+3. Choose a tab and click its button (e.g. **Log time**). The changes are listed first; nothing is saved until you
+   click **Confirm**.
 
 | Tab | What it does |
 |---|---|
@@ -31,7 +32,7 @@ created bookmark.
 The dates follow the myProtime calendar: open the month you want to work on (and optionally click a day)
 and the tabs preselect that month, week or day. The Overview shows the whole month.
 
-Nothing is changed before you click **Execute**. Weekends, public holidays, locked days and days with an
+Nothing is changed before you click **Confirm**. Weekends, public holidays, locked days and days with an
 absence are skipped. Days without a status are set to *Working* first (can be switched off). Days that
 already have logged time are skipped unless *Replace time already logged* is ticked.
 
@@ -39,7 +40,7 @@ Deleting time in myProtime creates a removal request; if it needs approval, the 
 until it is approved.
 
 > [!IMPORTANT]
-> **Always review your entries in myProtime.** After executing, open the myProtime calendar and check that
+> **Always review your entries in myProtime.** After confirming, open the myProtime calendar and check that
 > the day status and logged project time are correct for every affected day. You remain responsible for
 > your time registration. MyTimeLogger is an unofficial tool, not provided or supported by Protime, and it
 > comes **without any warranty of correctness** (see [License](#license)).

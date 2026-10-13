@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MyTimeLogger
 // @namespace    https://efrag.myprotime.eu/
-// @version      0.5.0
+// @version      0.6.0
 // @description  Bulk project time logging for myProtime
 // @match        https://efrag.myprotime.eu/*
 // @updateURL    https://efrag-eu.github.io/MyTimeLogger/mytimelogger.user.js
@@ -13,7 +13,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '0.5.0';
+  const VERSION = '0.6.0';
   const INSTALL_URL = 'https://efrag-eu.github.io/MyTimeLogger/';
   const UPDATE_REMINDER_MS = 14 * 24 * 60 * 60 * 1000;
   const LAST_UPDATE_CHECK_KEY = 'mytimelogger.lastUpdateCheck';
@@ -465,7 +465,7 @@
         title: 'Log range',
         fields: [...field('From', logFrom), ...field('To', logTo), ...field('Project', logProject), ...field('Hours per day', logHours),
           checkField(logSetWorking, setWorkingLabel), checkField(logReplace, replaceLabel)],
-        buttonLabel: 'Preview',
+        buttonLabel: 'Log time',
         plan: onProgress => planLogRange({
           from: logFrom.value, to: logTo.value,
           project: context.projectsById.get(logProject.value),
@@ -477,7 +477,7 @@
         title: 'Copy day',
         fields: [...field('Copy day', copySource), ...field('To days from', copyFrom), ...field('until', copyTo),
           checkField(copySetWorking, setWorkingLabel), checkField(copyReplace, replaceLabel)],
-        buttonLabel: 'Preview',
+        buttonLabel: 'Copy day',
         plan: onProgress => planCopyDay({
           source: copySource.value, from: copyFrom.value, to: copyTo.value,
           projectsByName: context.projectsByName,
@@ -490,7 +490,7 @@
           h('p', { className: 'full message' }, 'Each day is copied to the same weekday. Days off in the target week are skipped.'),
           checkField(weekSetWorking, 'Set the same working status (e.g. Working, Teleworking) on target days without a status'),
           checkField(weekReplace, replaceLabel)],
-        buttonLabel: 'Preview',
+        buttonLabel: 'Copy week',
         shortcuts: [{
           label: 'Copy previous week',
           title: `Copy the week of ${formatDay(addDays(monday, -7))} to the week of ${formatDay(monday)}`,
@@ -511,7 +511,7 @@
         fields: [...field('From', deleteFrom), ...field('To', deleteTo),
           h('p', { className: 'full message' }, 'Deletes all logged project time (activities) of every day in the range.'),
           checkField(deleteStatus, 'Also remove the day status (Working, Vacation, …)')],
-        buttonLabel: 'Preview',
+        buttonLabel: 'Delete time',
         plan: onProgress => planDeleteActivities({ from: deleteFrom.value, to: deleteTo.value, removeStatus: deleteStatus.checked }, onProgress),
       },
     ];
@@ -559,9 +559,9 @@
   function planTable(plan) {
     const stateCells = new Map();
     const table = h('table', {},
-      h('tr', {}, h('th', {}, 'Day'), h('th', {}, 'Action'), h('th', {}, '')),
+      h('tr', {}, h('th', {}, 'Day'), h('th', {}, 'Change'), h('th', {}, '')),
       plan.rows.map(row => {
-        const state = h('td', { className: 'state' }, row.skipped ? 'skipped' : 'planned');
+        const state = h('td', { className: 'state' }, row.skipped ? 'skipped' : 'not saved yet');
         stateCells.set(row, state);
         return h('tr', { className: row.skipped ? 'skipped' : '' },
           h('td', { className: 'nowrap' }, formatDay(row.date)), h('td', {}, row.description), state);
@@ -638,12 +638,14 @@
     function renderTab(tab) {
       const message = h('span', { className: 'message' });
       const result = h('div');
-      const goButton = h('button', { className: 'secondary', onclick: run }, tab.buttonLabel);
+      const goButton = h('button', { className: tab.view ? 'secondary' : 'primary', onclick: run }, tab.buttonLabel);
       const shortcutButtons = (tab.shortcuts ?? []).map(shortcut => h('button', {
         className: 'secondary', title: shortcut.title,
         onclick: () => { shortcut.apply(); run(); },
       }, shortcut.label));
-      const setRunButtonsDisabled = disabled => [goButton, ...shortcutButtons].forEach(button => { button.disabled = disabled; });
+      const runButtons = [goButton, ...shortcutButtons];
+      const setRunButtonsDisabled = disabled => runButtons.forEach(button => { button.disabled = disabled; });
+      const setRunButtonsHidden = hidden => runButtons.forEach(button => { button.hidden = hidden; });
 
       const showMessage = (text, isError = false) => {
         message.textContent = text;
@@ -677,21 +679,33 @@
           return;
         }
         const { table, stateCells } = planTable(plan);
-        const executeButton = h('button', { className: 'primary' }, `Execute ${count} action${count === 1 ? '' : 's'}`);
-        executeButton.addEventListener('click', () => execute(plan, stateCells, executeButton));
-        showMessage('Check the actions below, then execute. Review the result in myProtime afterwards.');
-        result.append(h('div', { className: 'actions' }, executeButton), table);
+        const changes = `${count} change${count === 1 ? '' : 's'}`;
+        const confirmButton = h('button', { className: 'primary' }, `Confirm ${changes}`);
+        const cancelButton = h('button', { className: 'secondary', onclick: cancel }, 'Cancel');
+        const confirmation = h('div', { className: 'actions' }, confirmButton, cancelButton);
+        confirmButton.addEventListener('click', () => {
+          confirmation.remove();
+          execute(plan, stateCells);
+        });
+        showMessage(`Nothing saved yet – please check the ${changes} below.`);
+        setRunButtonsHidden(true);
+        result.append(confirmation, table);
       }
 
-      async function execute(plan, stateCells, executeButton) {
+      function cancel() {
+        result.replaceChildren();
+        setRunButtonsHidden(false);
+        showMessage('Cancelled – nothing was changed.');
+      }
+
+      async function execute(plan, stateCells) {
         isBusy = true;
-        executeButton.disabled = true;
         setRunButtonsDisabled(true);
         let failed = 0;
         for (const [index, action] of plan.actions.entries()) {
           const cell = stateCells.get(action);
-          cell.textContent = 'running…';
-          showMessage(`Executing ${index + 1}/${plan.actions.length}…`);
+          cell.textContent = 'saving…';
+          showMessage(`Saving ${index + 1}/${plan.actions.length}…`);
           try {
             await action.run();
             cell.textContent = '✓ done';
@@ -703,8 +717,9 @@
           }
         }
         setRunButtonsDisabled(false);
+        setRunButtonsHidden(false);
         isBusy = false;
-        const outcome = failed ? `Finished with ${failed} failed action(s).` : 'All actions done.';
+        const outcome = failed ? `Finished with ${failed} failed change(s).` : 'All changes saved.';
         showMessage(`${outcome} Please review the result in the myProtime calendar.`, failed > 0);
       }
 
