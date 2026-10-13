@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MyTimeLogger
 // @namespace    https://efrag.myprotime.eu/
-// @version      0.1.0
+// @version      0.1.1
 // @description  Bulk day status and project time logging for myProtime
 // @match        https://efrag.myprotime.eu/*
 // @grant        none
@@ -545,7 +545,7 @@
         const { table, stateCells } = planTable(plan);
         const executeButton = h('button', { className: 'primary' }, `Execute ${count} action${count === 1 ? '' : 's'}`);
         executeButton.addEventListener('click', () => execute(plan, stateCells, executeButton));
-        showMessage(`Check the actions below, then execute.`);
+        showMessage('Check the actions below, then execute. Review the result in myProtime afterwards.');
         result.append(h('div', { className: 'actions' }, executeButton), table);
       }
 
@@ -568,7 +568,8 @@
           }
         }
         goButton.disabled = false;
-        showMessage(failed ? `Finished with ${failed} failed action(s).` : 'All actions done.', failed > 0);
+        const outcome = failed ? `Finished with ${failed} failed action(s).` : 'All actions done.';
+        showMessage(`${outcome} Please review the result in the myProtime calendar.`, failed > 0);
       }
 
       return [h('div', { className: 'fields' }, tab.fields), h('div', { className: 'actions' }, goButton, message), result];

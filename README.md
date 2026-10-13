@@ -34,6 +34,12 @@ already have logged time are skipped unless *Replace time already logged* is tic
 Deleting time in myProtime creates a removal request; if it needs approval, the old entry stays visible
 until it is approved.
 
+> [!IMPORTANT]
+> **Always review your entries in myProtime.** After executing, open the myProtime calendar and check that
+> the day status and logged project time are correct for every affected day. You remain responsible for
+> your time registration. MyTimeLogger is an unofficial tool, not provided or supported by Protime, and it
+> comes **without any warranty of correctness** (see [License](#license)).
+
 ## Updating
 
 When a new version is released, delete the old **Time Logger** bookmark and install the new one from the
