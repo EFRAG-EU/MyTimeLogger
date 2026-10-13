@@ -2,6 +2,9 @@ $ErrorActionPreference = 'Stop'
 
 $script = [IO.File]::ReadAllText("$PSScriptRoot\mytimelogger.user.js", [Text.Encoding]::UTF8)
 $version = [regex]::Match($script, '@version\s+(\S+)').Groups[1].Value
+if ($script -notmatch "const VERSION = '$([regex]::Escape($version))';") {
+    throw "@version $version and const VERSION in mytimelogger.user.js differ"
+}
 
 $wrapped = "(()=>{if(location.hostname!=='efrag.myprotime.eu'){alert('Open https://efrag.myprotime.eu and log in, then click Time Logger again.');return;}`n" +
     $script +

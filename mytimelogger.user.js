@@ -1,9 +1,11 @@
 // ==UserScript==
 // @name         MyTimeLogger
 // @namespace    https://efrag.myprotime.eu/
-// @version      0.2.0
-// @description  Bulk day status and project time logging for myProtime
+// @version      0.3.0
+// @description  Bulk project time logging for myProtime
 // @match        https://efrag.myprotime.eu/*
+// @updateURL    https://efrag-eu.github.io/MyTimeLogger/mytimelogger.user.js
+// @downloadURL  https://efrag-eu.github.io/MyTimeLogger/mytimelogger.user.js
 // @grant        none
 // @run-at       document-idle
 // ==/UserScript==
@@ -11,12 +13,14 @@
 (() => {
   'use strict';
 
+  const VERSION = '0.3.0';
+  const INSTALL_URL = 'https://efrag-eu.github.io/MyTimeLogger/';
+  const UPDATE_REMINDER_MS = 14 * 24 * 60 * 60 * 1000;
+  const LAST_UPDATE_CHECK_KEY = 'mytimelogger.lastUpdateCheck';
   const APP_ID = 'mytimelogger';
   const TOGGLE_EVENT = 'mytimelogger:toggle';
   const WORKING_TYPE_ID = 3245;
   const WORKING_TYPE_IDS = new Set([WORKING_TYPE_ID, 3609, 3610, 5743]);
-  const VACATION_TYPE = { id: 3210, name: 'Vacation' };
-  const DURATION_TYPES = [['FullDay', 'Full day'], ['FirstDayPart', 'First day part'], ['SecondDayPart', 'Second day part']];
   const TOKEN_MAX_AGE_MS = 10 * 60 * 1000;
   const ABSENCE_RETRY_DELAY_MS = 1500;
   const ABSENCE_MAX_RETRIES = 10;
@@ -135,14 +139,6 @@
       };
     },
 
-    async loadAbsenceTypes(iso) {
-      const date = toDmy(iso);
-      const form = await api.get(`/api/absencerequest/form?personId=${this.personId}&from=${date}&until=${date}&absenceRequestId=undefined&poll=0`);
-      const types = form.absenceDefinitions.map(definition => ({ id: definition.reference, name: definition.friendlyNameWithBalance }));
-      if (!types.some(type => type.id === VACATION_TYPE.id)) types.unshift(VACATION_TYPE);
-      return types;
-    },
-
     async loadDay(iso) {
       const detail = await api.get(`/api/daydetail/person/${this.personId}?date=${iso}&poll=0`);
       const costDurations = detail.costDurations?.costDurations ?? [];
@@ -216,11 +212,13 @@
   async function forEachDay(dates, onProgress, visit) {
     for (const [index, date] of dates.entries()) {
       onProgress(`Reading ${formatDay(date)} (${index + 1}/${dates.length})…`);
-      await visit(date);
+      await visit(date, index);
     }
   }
 
-  async function prepareWorkingDay(plan, date, { setWorking, replace }) {
+  const WORKING_STATUS = { id: WORKING_TYPE_ID, title: 'Working' };
+
+  async function prepareWorkingDay(plan, date, { setWorking, replace, workingStatus = WORKING_STATUS }) {
     if (isWeekend(date)) return plan.skip(date, 'Weekend');
     const day = await protime.loadDay(date);
     if (day.isPublicHoliday) return plan.skip(date, 'Public holiday');
@@ -231,7 +229,9 @@
     if (!isWorking && !setWorking) return plan.skip(date, 'No status set');
     if (day.entries.length > 0 && !replace) return plan.skip(date, `Already logged: ${describeEntries(day)}`);
 
-    if (!isWorking) plan.add(date, 'Set status: Working', () => protime.requestStatus(date, WORKING_TYPE_ID, 'FullDay'));
+    if (!isWorking) {
+      plan.add(date, `Set status: ${workingStatus.title}`, () => protime.requestStatus(date, workingStatus.id, 'FullDay'));
+    }
     if (day.entries.length > 0) await addCostRemovals(plan, date);
     return day;
   }
@@ -277,39 +277,57 @@
     onProgress(`Reading ${formatDay(source)}…`);
     const sourceDay = await protime.loadDay(source);
     if (sourceDay.entries.length === 0) throw new Error(`${formatDay(source)} has no logged time to copy`);
-    const entries = sourceDay.entries.map(entry => {
-      const project = projectsByName.get(entry.name);
-      if (!project) throw new Error(`Project "${entry.name}" is not in your project list`);
-      return { project, duration: entry.duration };
-    });
+    const entries = resolveProjects(sourceDay, projectsByName);
 
     const plan = new Plan();
     const targets = datesBetween(from, to).filter(date => date !== source);
     await forEachDay(targets, onProgress, async date => {
       const day = await prepareWorkingDay(plan, date, { setWorking, replace });
-      if (!day) return;
-      for (const { project, duration } of entries) {
-        plan.add(date, `Log ${duration} → ${project.name}`, () => protime.addCost(date, project.id, duration));
-      }
+      if (day) addCosts(plan, date, entries);
     });
     return plan;
   }
 
-  async function planStatus({ from, to, type, durationType, replace }, onProgress) {
-    const plan = new Plan();
-    await forEachDay(datesBetween(from, to), onProgress, async date => {
-      if (isWeekend(date)) return plan.skip(date, 'Weekend');
-      const day = await protime.loadDay(date);
-      if (day.isPublicHoliday) return plan.skip(date, 'Public holiday');
-      if (day.isLocked) return plan.skip(date, 'Day is locked');
-      if (day.statuses.some(status => status.id === type.id)) return plan.skip(date, `Already: ${type.name}`);
-      if (day.statuses.length > 0 && !replace) return plan.skip(date, `Has status: ${describeStatuses(day)}`);
-
-      for (const status of day.statuses) {
-        plan.add(date, `Remove status: ${status.title}`, () => protime.removeStatus(date, status.id));
-      }
-      plan.add(date, `Set status: ${type.name}`, () => protime.requestStatus(date, type.id, durationType));
+  function resolveProjects(day, projectsByName) {
+    return day.entries.map(entry => {
+      const project = projectsByName.get(entry.name);
+      if (!project) throw new Error(`Project "${entry.name}" is not in your project list`);
+      return { project, duration: entry.duration };
     });
+  }
+
+  function addCosts(plan, date, entries) {
+    for (const { project, duration } of entries) {
+      plan.add(date, `Log ${duration} → ${project.name}`, () => protime.addCost(date, project.id, duration));
+    }
+  }
+
+  async function planCopyWeek({ sourceWeek, targetWeek, weeks, projectsByName, setWorking, replace }, onProgress) {
+    if (!sourceWeek || !targetWeek) throw new Error('Please enter both weeks');
+    if (!Number.isInteger(weeks) || weeks < 1 || weeks > 8) throw new Error('Number of weeks must be between 1 and 8');
+    const sourceMonday = mondayOf(sourceWeek);
+    const targetMondays = Array.from({ length: weeks }, (_, week) => addDays(mondayOf(targetWeek), 7 * week));
+    if (targetMondays.includes(sourceMonday)) throw new Error('The target weeks must not include the source week');
+
+    const sourceDays = [];
+    await forEachDay(datesBetween(sourceMonday, addDays(sourceMonday, 6)), onProgress, async date => {
+      sourceDays.push(await protime.loadDay(date));
+    });
+    if (sourceDays.every(day => day.entries.length === 0)) throw new Error('The source week has no logged time to copy');
+    const sourceEntries = sourceDays.map(day => resolveProjects(day, projectsByName));
+
+    const plan = new Plan();
+    for (const monday of targetMondays) {
+      await forEachDay(datesBetween(monday, addDays(monday, 6)), onProgress, async (date, weekday) => {
+        const sourceDay = sourceDays[weekday];
+        if (sourceEntries[weekday].length === 0) {
+          return plan.skip(date, isWeekend(date) ? 'Weekend' : `Nothing logged on ${formatDay(sourceDay.date)}`);
+        }
+        const workingStatus = sourceDay.statuses.find(status => WORKING_TYPE_IDS.has(status.id));
+        const day = await prepareWorkingDay(plan, date, { setWorking, replace, workingStatus });
+        if (day) addCosts(plan, date, sourceEntries[weekday]);
+      });
+    }
     return plan;
   }
 
@@ -331,6 +349,9 @@
     header { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid #e3e3e3; }
     header h1 { margin: 0; font-size: 15px; flex: 1; }
     header .person { color: #666; }
+    header .update { color: #666; font-size: 12px; text-decoration: none; }
+    header .update:hover { text-decoration: underline; }
+    header .update.due { color: #c25e00; font-weight: 600; }
     .close { border: 0; background: none; font-size: 18px; cursor: pointer; color: #666; }
     nav { display: flex; border-bottom: 1px solid #e3e3e3; }
     nav button { flex: 1; padding: 8px; border: 0; border-bottom: 2px solid transparent; background: none; cursor: pointer; color: #444; }
@@ -339,7 +360,7 @@
     .fields { display: grid; grid-template-columns: 110px 1fr; gap: 8px 10px; align-items: center; }
     .fields .full { grid-column: 1 / -1; }
     .fields p { margin: 0; }
-    input[type=date], input[type=text], select { width: 100%; padding: 5px 6px; border: 1px solid #bbb; border-radius: 4px; background: #fff; color: #222; }
+    input[type=date], input[type=text], input[type=number], select { width: 100%; padding: 5px 6px; border: 1px solid #bbb; border-radius: 4px; background: #fff; color: #222; }
     label.check { display: flex; gap: 6px; align-items: center; }
     .actions { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
     .primary, .secondary { padding: 7px 14px; border-radius: 4px; cursor: pointer; border: 1px solid #1f5fa8; }
@@ -399,11 +420,9 @@
     const copyTo = dateInput(friday > today ? friday : addDays(today, 1));
     const copySetWorking = checkbox(true), copyReplace = checkbox(false);
 
-    const statusFrom = dateInput(monday), statusTo = dateInput(friday);
-    const statusType = h('select', {}, options(context.absenceTypes.map(type => [type.id, type.name])));
-    statusType.value = String(WORKING_TYPE_ID);
-    const statusDuration = h('select', {}, options(DURATION_TYPES));
-    const statusReplace = checkbox(false);
+    const weekSource = dateInput(monday), weekTarget = dateInput(addDays(monday, 7));
+    const weekCount = h('input', { type: 'number', min: 1, max: 8, value: 1 });
+    const weekSetWorking = checkbox(true), weekReplace = checkbox(false);
 
     const deleteFrom = dateInput(monday), deleteTo = dateInput(friday);
     const deleteStatus = checkbox(false);
@@ -442,14 +461,16 @@
         }, onProgress),
       },
       {
-        title: 'Day status',
-        fields: [...field('From', statusFrom), ...field('To', statusTo), ...field('Status', statusType), ...field('Duration', statusDuration),
-          checkField(statusReplace, 'Replace an existing status (e.g. Working → Vacation)')],
+        title: 'Copy week',
+        fields: [...field('Copy week of', weekSource), ...field('To week of', weekTarget), ...field('Number of weeks', weekCount),
+          h('p', { className: 'full message' }, 'Each day is copied to the same weekday. Days off in the target week are skipped.'),
+          checkField(weekSetWorking, 'Set the same working status (e.g. Working, Teleworking) on target days without a status'),
+          checkField(weekReplace, replaceLabel)],
         buttonLabel: 'Preview',
-        plan: onProgress => planStatus({
-          from: statusFrom.value, to: statusTo.value,
-          type: context.absenceTypes.find(type => String(type.id) === statusType.value),
-          durationType: statusDuration.value, replace: statusReplace.checked,
+        plan: onProgress => planCopyWeek({
+          sourceWeek: weekSource.value, targetWeek: weekTarget.value, weeks: Number(weekCount.value),
+          projectsByName: context.projectsByName,
+          setWorking: weekSetWorking.checked, replace: weekReplace.checked,
         }, onProgress),
       },
       {
@@ -461,6 +482,35 @@
         plan: onProgress => planDeleteActivities({ from: deleteFrom.value, to: deleteTo.value, removeStatus: deleteStatus.checked }, onProgress),
       },
     ];
+  }
+
+  function isUpdateCheckDue() {
+    try {
+      const lastCheck = Number(localStorage.getItem(LAST_UPDATE_CHECK_KEY));
+      if (!lastCheck) rememberUpdateCheck();
+      return Boolean(lastCheck) && Date.now() - lastCheck > UPDATE_REMINDER_MS;
+    } catch {
+      return false;
+    }
+  }
+
+  function rememberUpdateCheck() {
+    try { localStorage.setItem(LAST_UPDATE_CHECK_KEY, String(Date.now())); } catch { /* storage unavailable */ }
+  }
+
+  function updateLink() {
+    const due = isUpdateCheckDue();
+    const link = h('a', {
+      className: due ? 'update due' : 'update',
+      href: `${INSTALL_URL}?installed=${VERSION}`, target: '_blank', rel: 'noopener',
+      title: 'Opens the install page, which tells you whether a newer version is available',
+    }, due ? `v${VERSION} · Check for updates!` : `v${VERSION} · Check for updates`);
+    link.addEventListener('click', () => {
+      rememberUpdateCheck();
+      link.className = 'update';
+      link.textContent = `v${VERSION} · Check for updates`;
+    });
+    return link;
   }
 
   function overviewTable(days) {
@@ -500,7 +550,7 @@
       panel.hidden = !panel.hidden;
       if (panel.hidden || initialized) return;
       initialized = true;
-      panel.replaceChildren(h('div', { className: 'body message' }, 'Loading your projects and absence types…'));
+      panel.replaceChildren(h('div', { className: 'body message' }, 'Loading your projects…'));
       try {
         panel.replaceChildren(...render(await loadContext()));
       } catch (error) {
@@ -511,12 +561,10 @@
 
     async function loadContext() {
       await protime.loadPerson();
-      const today = todayIso();
-      const [projects, absenceTypes] = await Promise.all([protime.loadProjects(today), protime.loadAbsenceTypes(today)]);
+      const projects = await protime.loadProjects(todayIso());
       const known = [...projects.all, ...projects.favourites, ...projects.recent];
       return {
         projects,
-        absenceTypes,
         projectsById: new Map(known.map(project => [project.id, project])),
         projectsByName: new Map(known.map(project => [project.name, project])),
       };
@@ -527,7 +575,7 @@
       const tabButtons = tabs.map((tab, index) => h('button', { onclick: () => select(index) }, tab.title));
       const body = h('div', { className: 'body' });
       const header = h('header', {},
-        h('h1', {}, 'MyTimeLogger'), h('span', { className: 'person' }, protime.personName),
+        h('h1', {}, 'MyTimeLogger'), updateLink(), h('span', { className: 'person' }, protime.personName),
         h('button', { className: 'close', title: 'Close', onclick: () => { panel.hidden = true; } }, '×'));
 
       function select(index) {

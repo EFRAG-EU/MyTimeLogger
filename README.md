@@ -1,7 +1,7 @@
 # MyTimeLogger
 
-A **Time Logger** panel for [myProtime](https://efrag.myprotime.eu/) for logging day status and project
-time for a whole week in a few clicks. It runs as a browser bookmark: nothing to install, no extension,
+A **Time Logger** panel for [myProtime](https://efrag.myprotime.eu/) for logging project time for a whole
+week in a few clicks. It runs as a browser bookmark: nothing to install, no extension,
 no passwords or tokens to enter. It works in Edge, Chrome and Firefox.
 
 ## Install (once)
@@ -25,7 +25,7 @@ created bookmark.
 | Overview | Shows status and logged project time for each day in a range. |
 | Log range | Logs one project for every working day in a range (e.g. a full week), using your scheduled hours unless you enter hours (`7:30` or `7.5`). |
 | Copy day | Copies all project entries of one day to every working day in a range. |
-| Day status | Sets Working, Vacation, Teleworking, … for every weekday in a range, optionally replacing an existing status. |
+| Copy week | Copies a full week to the next week (or several following weeks): each day's entries go to the same weekday, days off in the target week are skipped. |
 | Delete | Deletes all logged project time (activities) of every day in a range, optionally also the day status. |
 
 Nothing is changed before you click **Execute**. Weekends, public holidays, locked days and days with an
@@ -43,17 +43,24 @@ until it is approved.
 
 ## Updating
 
-When a new version is released, delete the old **Time Logger** bookmark and install the new one from the
-[install page](https://efrag-eu.github.io/MyTimeLogger/). The version is shown at the top of the page.
+The panel header shows your version and a **Check for updates** link, which opens the install page and
+tells you whether a newer version is available. Every two weeks the link is highlighted as a reminder.
+(myProtime's security settings do not allow the panel to check GitHub by itself.)
+
+To update, delete the old **Time Logger** bookmark and drag the new button from the
+[install page](https://efrag-eu.github.io/MyTimeLogger/) onto the bookmarks bar.
+Tampermonkey users are updated automatically.
 
 ## For maintainers
 
 - `mytimelogger.user.js` is the only source file.
-- After changing it, increase `@version` and run `.\build.ps1` (PowerShell, no other tools needed) to
+- After changing it, increase `@version` and `const VERSION` (the build checks they match) and run `.\build.ps1` (PowerShell, no other tools needed) to
   regenerate `index.html` (the install page, published via GitHub Pages) from `index.template.html`.
-  Commit both files; the install page updates a minute after pushing to `main`.
-- `mytimelogger.user.js` can also be installed directly as a userscript (e.g. Tampermonkey), which shows the
-  Time Logger button on every myProtime page without clicking a bookmark.
+  Commit both files; the install page updates a minute after pushing to `main`. If PowerShell refuses to
+  run the script, use `powershell -ExecutionPolicy Bypass -File build.ps1`.
+- `mytimelogger.user.js` can also be installed directly as a userscript (e.g. Tampermonkey) from
+  https://efrag-eu.github.io/MyTimeLogger/mytimelogger.user.js, which shows the Time Logger button on every
+  myProtime page without clicking a bookmark and updates automatically.
 - The tool uses the same internal requests as the myProtime website (`/api/...`, `/bff/...`) with the
   user's own session. The official [ProTime API](https://documentation.myprotime.eu/protimeapi/) only
   offers company-level client credentials and cannot write activity durations or absence requests.

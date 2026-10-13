@@ -26,13 +26,17 @@
   button { margin-top: 8px; padding: 6px 14px; border: 1px solid var(--accent); border-radius: 6px; background: transparent; color: var(--accent); cursor: pointer; }
   .muted { color: var(--muted); font-size: 13px; }
   .notice { margin-top: 16px; border-left: 4px solid #d9822b; }
+  .status { margin-bottom: 16px; border-left: 4px solid #2e9d5b; }
+  .status.outdated { border-left-color: #d9822b; }
   a { color: var(--accent); }
 </style>
 </head>
 <body>
 <main>
   <h1>MyTimeLogger</h1>
-  <p class="lead">Log your day status and project time in myProtime for a whole week in a few clicks. Version {{VERSION}}.</p>
+  <p class="lead">Log your project time in myProtime for a whole week in a few clicks. Version {{VERSION}}.</p>
+
+  <div id="update-status" class="card status" hidden></div>
 
   <div class="card">
     <h2 style="margin-top:0">Install (once)</h2>
@@ -68,6 +72,32 @@
   <p>When a new version is released, delete the old bookmark and install the new one from this page.</p>
 </main>
 <script>
+  const LATEST_VERSION = '{{VERSION}}';
+
+  function compareVersions(a, b) {
+    const partsA = a.split('.').map(Number), partsB = b.split('.').map(Number);
+    for (let i = 0; i < Math.max(partsA.length, partsB.length); i++) {
+      const difference = (partsA[i] || 0) - (partsB[i] || 0);
+      if (difference) return difference;
+    }
+    return 0;
+  }
+
+  function showUpdateStatus() {
+    const installed = new URLSearchParams(location.search).get('installed');
+    if (!installed || !/^\d+(\.\d+)*$/.test(installed)) return;
+    const status = document.getElementById('update-status');
+    const isOutdated = compareVersions(installed, LATEST_VERSION) < 0;
+    status.classList.toggle('outdated', isOutdated);
+    status.innerHTML = isOutdated
+      ? `<b>A new version is available.</b> You have version ${installed}, the latest is ${LATEST_VERSION}.
+         Delete your old <b>Time Logger</b> bookmark and drag the new button below onto the bookmarks bar.`
+      : `<b>You have the latest version</b> (${LATEST_VERSION}). Nothing to do.`;
+    status.hidden = false;
+  }
+
+  showUpdateStatus();
+
   function copyCode(button) {
     const code = document.getElementById('code');
     code.select();
