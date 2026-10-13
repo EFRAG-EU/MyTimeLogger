@@ -26,6 +26,7 @@ created bookmark.
 | Log range | Logs one project for every working day in a range (e.g. a full week), using your scheduled hours unless you enter hours (`7:30` or `7.5`). |
 | Copy day | Copies all project entries of one day to every working day in a range. |
 | Day status | Sets Working, Vacation, Teleworking, … for every weekday in a range, optionally replacing an existing status. |
+| Delete | Deletes all logged project time (activities) of every day in a range, optionally also the day status. |
 
 Nothing is changed before you click **Execute**. Weekends, public holidays, locked days and days with an
 absence are skipped. Days without a status are set to *Working* first (can be switched off). Days that

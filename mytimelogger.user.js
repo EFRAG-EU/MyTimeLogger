@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MyTimeLogger
 // @namespace    https://efrag.myprotime.eu/
-// @version      0.1.1
+// @version      0.2.0
 // @description  Bulk day status and project time logging for myProtime
 // @match        https://efrag.myprotime.eu/*
 // @grant        none
@@ -232,12 +232,31 @@
     if (day.entries.length > 0 && !replace) return plan.skip(date, `Already logged: ${describeEntries(day)}`);
 
     if (!isWorking) plan.add(date, 'Set status: Working', () => protime.requestStatus(date, WORKING_TYPE_ID, 'FullDay'));
-    if (day.entries.length > 0) {
-      for (const entry of await protime.loadCostEntries(date)) {
-        plan.add(date, `Delete ${entry.name} ${entry.duration}`, () => protime.removeCost(entry.id));
-      }
-    }
+    if (day.entries.length > 0) await addCostRemovals(plan, date);
     return day;
+  }
+
+  async function addCostRemovals(plan, date) {
+    const entries = await protime.loadCostEntries(date);
+    for (const entry of entries) {
+      plan.add(date, `Delete ${entry.name} ${entry.duration}`, () => protime.removeCost(entry.id));
+    }
+    return entries.length;
+  }
+
+  async function planDeleteActivities({ from, to, removeStatus }, onProgress) {
+    const plan = new Plan();
+    await forEachDay(datesBetween(from, to), onProgress, async date => {
+      const day = await protime.loadDay(date);
+      if (day.isLocked) return plan.skip(date, 'Day is locked');
+      const removals = day.entries.length > 0 ? await addCostRemovals(plan, date) : 0;
+      const statuses = removeStatus ? day.statuses : [];
+      for (const status of statuses) {
+        plan.add(date, `Remove status: ${status.title}`, () => protime.removeStatus(date, status.id));
+      }
+      if (removals === 0 && statuses.length === 0) plan.skip(date, isWeekend(date) ? 'Weekend – nothing logged' : 'Nothing to delete');
+    });
+    return plan;
   }
 
   async function planLogRange({ from, to, project, duration, setWorking, replace }, onProgress) {
@@ -319,6 +338,7 @@
     .body { padding: 12px 14px; overflow: auto; }
     .fields { display: grid; grid-template-columns: 110px 1fr; gap: 8px 10px; align-items: center; }
     .fields .full { grid-column: 1 / -1; }
+    .fields p { margin: 0; }
     input[type=date], input[type=text], select { width: 100%; padding: 5px 6px; border: 1px solid #bbb; border-radius: 4px; background: #fff; color: #222; }
     label.check { display: flex; gap: 6px; align-items: center; }
     .actions { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
@@ -385,6 +405,9 @@
     const statusDuration = h('select', {}, options(DURATION_TYPES));
     const statusReplace = checkbox(false);
 
+    const deleteFrom = dateInput(monday), deleteTo = dateInput(friday);
+    const deleteStatus = checkbox(false);
+
     const setWorkingLabel = 'Set status "Working" on weekdays that have no status yet';
     const replaceLabel = 'Replace time already logged (otherwise those days are skipped)';
 
@@ -428,6 +451,14 @@
           type: context.absenceTypes.find(type => String(type.id) === statusType.value),
           durationType: statusDuration.value, replace: statusReplace.checked,
         }, onProgress),
+      },
+      {
+        title: 'Delete',
+        fields: [...field('From', deleteFrom), ...field('To', deleteTo),
+          h('p', { className: 'full message' }, 'Deletes all logged project time (activities) of every day in the range.'),
+          checkField(deleteStatus, 'Also remove the day status (Working, Vacation, …)')],
+        buttonLabel: 'Preview',
+        plan: onProgress => planDeleteActivities({ from: deleteFrom.value, to: deleteTo.value, removeStatus: deleteStatus.checked }, onProgress),
       },
     ];
   }
