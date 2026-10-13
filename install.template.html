@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Install MyTimeLogger</title>
+<style>
+  :root { --bg: #f5f7fa; --card: #fff; --text: #1f2933; --muted: #5f6b7a; --accent: #1f5fa8; --border: #dde3ea; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #14181d; --card: #1d232a; --text: #e6e9ed; --muted: #9aa5b1; --accent: #6ea8ec; --border: #2e3640; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 32px 16px; background: var(--bg); color: var(--text); font: 15px/1.55 "Segoe UI", Roboto, Arial, sans-serif; }
+  main { max-width: 720px; margin: 0 auto; }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  h2 { font-size: 17px; margin: 28px 0 8px; }
+  .lead { color: var(--muted); margin: 0 0 24px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px 22px; }
+  ol { padding-left: 20px; margin: 0; }
+  li + li { margin-top: 10px; }
+  .bookmarklet { display: inline-block; margin: 6px 0; padding: 9px 18px; border-radius: 20px; background: var(--accent); color: #fff;
+    font-weight: 600; text-decoration: none; cursor: grab; }
+  kbd { padding: 1px 6px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); font-size: 13px; }
+  textarea { width: 100%; height: 90px; margin-top: 8px; font: 12px Consolas, monospace; background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px; padding: 8px; }
+  button { margin-top: 8px; padding: 6px 14px; border: 1px solid var(--accent); border-radius: 6px; background: transparent; color: var(--accent); cursor: pointer; }
+  .muted { color: var(--muted); font-size: 13px; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>MyTimeLogger</h1>
+  <p class="lead">Log your day status and project time in myProtime for a whole week in a few clicks. Version {{VERSION}}.</p>
+
+  <div class="card">
+    <h2 style="margin-top:0">Install (once)</h2>
+    <ol>
+      <li>Show the bookmarks bar: press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd> (Edge: favourites bar).</li>
+      <li>Drag this button onto the bookmarks bar:<br>
+        <a class="bookmarklet" href="{{BOOKMARKLET}}" onclick="alert('Drag this button to your bookmarks bar instead of clicking it.'); return false;">Time Logger</a></li>
+    </ol>
+
+    <h2>Use</h2>
+    <ol>
+      <li>Open <a href="https://efrag.myprotime.eu/" target="_blank" rel="noopener">efrag.myprotime.eu</a> and log in as usual.</li>
+      <li>Click <b>Time Logger</b> in your bookmarks bar. The panel opens on the right; click it again to hide it.</li>
+      <li>Choose a tab, click <b>Preview</b>, check the planned actions and click <b>Execute</b>.</li>
+    </ol>
+    <p class="muted">After reloading the myProtime page, click the bookmark again.</p>
+  </div>
+
+  <h2>Dragging does not work?</h2>
+  <p>Create a new bookmark manually (right-click the bookmarks bar → <i>Add page</i> / <i>Add favourite</i>), name it
+    <b>Time Logger</b> and paste the following text as its URL:</p>
+  <textarea id="code" readonly>{{BOOKMARKLET}}</textarea>
+  <button type="button" onclick="copyCode(this)">Copy to clipboard</button>
+
+  <h2>Updating</h2>
+  <p>When a new version is released, delete the old bookmark and install the new one from this page.</p>
+</main>
+<script>
+  function copyCode(button) {
+    const code = document.getElementById('code');
+    code.select();
+    const done = () => { button.textContent = 'Copied'; };
+    navigator.clipboard ? navigator.clipboard.writeText(code.value).then(done, () => document.execCommand('copy') && done())
+                        : document.execCommand('copy') && done();
+  }
+</script>
+</body>
+</html>
