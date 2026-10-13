@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Install MyTimeLogger</title>
 <style>
-  :root { --bg: #f5f7fa; --card: #fff; --text: #1f2933; --muted: #5f6b7a; --accent: #1f5fa8; --border: #dde3ea; }
+  :root { --bg: #f5f7fa; --card: #fff; --text: #1f2933; --muted: #5f6b7a; --accent: #1f5fa8; --border: #dde3ea; --on-accent: #fff; }
   @media (prefers-color-scheme: dark) {
-    :root { --bg: #14181d; --card: #1d232a; --text: #e6e9ed; --muted: #9aa5b1; --accent: #6ea8ec; --border: #2e3640; }
+    :root { --bg: #14181d; --card: #1d232a; --text: #e6e9ed; --muted: #9aa5b1; --accent: #6ea8ec; --border: #2e3640; --on-accent: #0d1b2a; }
   }
   * { box-sizing: border-box; }
   body { margin: 0; padding: 32px 16px; background: var(--bg); color: var(--text); font: 15px/1.55 "Segoe UI", Roboto, Arial, sans-serif; }
@@ -18,13 +18,32 @@
   .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px 22px; }
   ol { padding-left: 20px; margin: 0; }
   li + li { margin-top: 10px; }
-  .bookmarklet { display: inline-block; margin: 6px 0; padding: 9px 18px; border-radius: 20px; background: var(--accent); color: #fff;
+  .bookmarklet { display: inline-block; margin: 6px 0; padding: 9px 18px; border-radius: 20px; background: var(--accent); color: var(--on-accent);
     font-weight: 600; text-decoration: none; cursor: grab; }
   kbd { padding: 1px 6px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); font-size: 13px; }
   textarea { width: 100%; height: 90px; margin-top: 8px; font: 12px Consolas, monospace; background: var(--bg); color: var(--text);
     border: 1px solid var(--border); border-radius: 6px; padding: 8px; }
   button { margin-top: 8px; padding: 6px 14px; border: 1px solid var(--accent); border-radius: 6px; background: transparent; color: var(--accent); cursor: pointer; }
   .muted { color: var(--muted); font-size: 13px; }
+  .illustration { margin: 18px 0 4px; }
+  .illustration svg { display: block; width: 100%; max-width: 640px; height: auto; font-family: inherit; }
+  .illustration .window { fill: var(--card); stroke: var(--border); }
+  .illustration .window-fill { fill: var(--card); }
+  .illustration .chrome { fill: var(--bg); }
+  .illustration .divider { stroke: var(--border); }
+  .illustration .small { font-size: 12px; fill: var(--text); }
+  .illustration .muted { fill: var(--muted); }
+  .illustration .muted-fill { fill: var(--muted); opacity: .45; }
+  .illustration .placeholder { fill: var(--border); }
+  .illustration .heading { font-size: 18px; font-weight: 700; fill: var(--text); }
+  .illustration .accent-fill { fill: var(--accent); }
+  .illustration .accent-text { fill: var(--accent); }
+  .illustration .strong { font-weight: 600; }
+  .illustration .drop-target { fill: var(--accent); fill-opacity: .12; stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 4 3; }
+  .illustration .button-text { font-size: 13px; font-weight: 600; fill: var(--on-accent); }
+  .illustration .drag-path { fill: none; stroke: var(--accent); stroke-width: 2.2; stroke-dasharray: 6 5; }
+  .illustration .cursor { fill: var(--text); stroke: var(--card); stroke-width: 1.5; stroke-linejoin: round; }
+  .illustration .label { font-size: 14px; font-weight: 600; fill: var(--text); }
   .notice { margin-top: 16px; border-left: 4px solid #d9822b; }
   .status { margin-bottom: 16px; border-left: 4px solid #2e9d5b; }
   .status.outdated { border-left-color: #d9822b; }
@@ -45,6 +64,41 @@
       <li>Drag this button onto the bookmarks bar:<br>
         <a class="bookmarklet" href="{{BOOKMARKLET}}" onclick="alert('Drag this button to your bookmarks bar instead of clicking it.'); return false;">Time Logger</a></li>
     </ol>
+
+    <figure class="illustration">
+      <svg viewBox="0 0 640 320" role="img" aria-label="Illustration: press and hold the blue Time Logger button on this page, drag it up and drop it on the bookmarks bar below the address bar.">
+        <defs>
+          <marker id="arrowhead" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" class="accent-fill"/>
+          </marker>
+        </defs>
+        <rect x="10" y="10" width="620" height="300" rx="10" class="window"/>
+        <path d="M10 44 V20 a10 10 0 0 1 10 -10 H620 a10 10 0 0 1 10 10 V44 z" class="chrome"/>
+        <path d="M24 44 V24 a6 6 0 0 1 6 -6 H188 a6 6 0 0 1 6 6 V44 z" class="window-fill"/>
+        <text x="38" y="36" class="small">Install MyTimeLogger</text>
+        <circle cx="586" cy="27" r="4" class="muted-fill"/><circle cx="600" cy="27" r="4" class="muted-fill"/><circle cx="614" cy="27" r="4" class="muted-fill"/>
+        <rect x="24" y="52" width="592" height="22" rx="11" class="chrome"/>
+        <text x="40" y="67" class="small muted">efrag-eu.github.io/MyTimeLogger/</text>
+        <line x1="10" y1="82" x2="630" y2="82" class="divider"/>
+        <line x1="10" y1="110" x2="630" y2="110" class="divider"/>
+        <rect x="26" y="90" width="10" height="10" rx="2" class="muted-fill"/><text x="41" y="99" class="small muted">News</text>
+        <rect x="88" y="90" width="10" height="10" rx="2" class="muted-fill"/><text x="103" y="99" class="small muted">Intranet</text>
+        <rect x="172" y="86" width="104" height="20" rx="5" class="drop-target"/>
+        <rect x="181" y="91" width="10" height="10" rx="2" class="accent-fill"/>
+        <text x="196" y="100" class="small accent-text strong">Time Logger</text>
+        <text x="290" y="100" class="small muted">← bookmarks / favourites bar (Ctrl+Shift+B)</text>
+        <text x="60" y="150" class="heading">MyTimeLogger</text>
+        <rect x="60" y="162" width="150" height="8" rx="4" class="placeholder"/>
+        <rect x="60" y="178" width="110" height="8" rx="4" class="placeholder"/>
+        <rect x="60" y="208" width="124" height="36" rx="18" class="accent-fill"/>
+        <text x="116" y="231" text-anchor="middle" class="button-text">Time Logger</text>
+        <path d="M188 222 C 268 214, 262 156, 230 116" class="drag-path" marker-end="url(#arrowhead)"/>
+        <path d="M172 232 v24 l6 -6 l5 10 l5 -2.4 l-5 -10 h8.5 z" class="cursor"/>
+        <text x="272" y="182" class="label">Press and hold the button,</text>
+        <text x="272" y="202" class="label">drag it up and drop it on the bar</text>
+        <text x="272" y="226" class="small muted">Then click it while myProtime is open.</text>
+      </svg>
+    </figure>
 
     <h2>Use</h2>
     <ol>
