@@ -6,13 +6,11 @@ no passwords or tokens to enter. It works in Edge, Chrome and Firefox.
 
 ## Install (once)
 
-1. Open **install.html** in your browser:
-   - from this repository: open `install.html`, click *Download raw file* and open the downloaded file, or
-   - from the link shared by a colleague.
+1. Open the install page: **https://efrag-eu.github.io/MyTimeLogger/**
 2. Show the bookmarks bar with <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd> (in Edge: favourites bar).
 3. Drag the blue **Time Logger** button from the page onto the bookmarks bar.
 
-If dragging does not work, install.html also shows the bookmark text to copy and paste into a manually
+If dragging does not work, the install page also shows the bookmark text to copy and paste into a manually
 created bookmark.
 
 ## Use
@@ -38,14 +36,15 @@ until it is approved.
 
 ## Updating
 
-When a new version is released, delete the old **Time Logger** bookmark and install the new one from
-install.html. The version is shown at the top of install.html.
+When a new version is released, delete the old **Time Logger** bookmark and install the new one from the
+[install page](https://efrag-eu.github.io/MyTimeLogger/). The version is shown at the top of the page.
 
 ## For maintainers
 
 - `mytimelogger.user.js` is the only source file.
 - After changing it, increase `@version` and run `.\build.ps1` (PowerShell, no other tools needed) to
-  regenerate `install.html` from `install.template.html`. Commit both files.
+  regenerate `index.html` (the install page, published via GitHub Pages) from `index.template.html`.
+  Commit both files; the install page updates a minute after pushing to `main`.
 - `mytimelogger.user.js` can also be installed directly as a userscript (e.g. Tampermonkey), which shows the
   Time Logger button on every myProtime page without clicking a bookmark.
 - The tool uses the same internal requests as the myProtime website (`/api/...`, `/bff/...`) with the
@@ -54,3 +53,7 @@ install.html. The version is shown at the top of install.html.
   If myProtime changes its requests, record a HAR in the browser's developer tools (Network tab →
   *Save all as HAR*) while doing the action manually, and update the `protime` object in the script.
   HAR files contain your session and are excluded by `.gitignore`; never commit or share them.
+
+## License
+
+[MIT](LICENSE)

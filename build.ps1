@@ -8,8 +8,8 @@ $wrapped = "(()=>{if(location.hostname!=='efrag.myprotime.eu'){alert('Open https
     "`ndocument.getElementById('mytimelogger').dispatchEvent(new Event('mytimelogger:toggle'));})();void 0"
 $bookmarklet = 'javascript:' + [Uri]::EscapeDataString($wrapped)
 
-$template = [IO.File]::ReadAllText("$PSScriptRoot\install.template.html", [Text.Encoding]::UTF8)
+$template = [IO.File]::ReadAllText("$PSScriptRoot\index.template.html", [Text.Encoding]::UTF8)
 $html = $template.Replace('{{BOOKMARKLET}}', $bookmarklet).Replace('{{VERSION}}', $version)
-[IO.File]::WriteAllText("$PSScriptRoot\install.html", $html, (New-Object Text.UTF8Encoding $false))
+[IO.File]::WriteAllText("$PSScriptRoot\index.html", $html, (New-Object Text.UTF8Encoding $false))
 
-Write-Host "install.html built: version $version, bookmarklet $($bookmarklet.Length) characters"
+Write-Host "index.html built: version $version, bookmarklet $($bookmarklet.Length) characters"
