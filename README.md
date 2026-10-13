@@ -29,6 +29,10 @@ created bookmark.
 | Copy week | Copies a full week to the next week (or several following weeks): each day's entries go to the same weekday, days off in the target week are skipped. The **Copy previous week** button copies last week to the current week in one click. |
 | Delete | Deletes all logged project time (activities) of every day in a range, optionally also the day status. |
 
+<img src="docs/overview.png" width="620" alt="Overview tab listing a week: complete days are ticked, incomplete days are highlighted with the problem (e.g. too few hours, no status, time on a vacation day) and a suggested fix button, plus a Fix all button.">
+
+*The Overview with example data: incomplete days are highlighted with a suggested fix.*
+
 The dates follow the myProtime calendar: open the month you want to work on (and optionally click a day)
 and the tabs preselect that month, week or day. The Overview shows the whole month.
 
