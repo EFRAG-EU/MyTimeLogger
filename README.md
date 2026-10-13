@@ -25,7 +25,7 @@ created bookmark.
 | Overview | Shows status and logged project time for each day in a range. |
 | Log range | Logs one project for every working day in a range (e.g. a full week), using your scheduled hours unless you enter hours (`7:30` or `7.5`). |
 | Copy day | Copies all project entries of one day to every working day in a range. |
-| Copy week | Copies a full week to the next week (or several following weeks): each day's entries go to the same weekday, days off in the target week are skipped. |
+| Copy week | Copies a full week to the next week (or several following weeks): each day's entries go to the same weekday, days off in the target week are skipped. The **Copy previous week** button copies last week to the current week in one click. |
 | Delete | Deletes all logged project time (activities) of every day in a range, optionally also the day status. |
 
 The dates follow the myProtime calendar: open the month you want to work on (and optionally click a day)

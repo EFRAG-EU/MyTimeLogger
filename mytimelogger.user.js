@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MyTimeLogger
 // @namespace    https://efrag.myprotime.eu/
-// @version      0.4.0
+// @version      0.5.0
 // @description  Bulk project time logging for myProtime
 // @match        https://efrag.myprotime.eu/*
 // @updateURL    https://efrag-eu.github.io/MyTimeLogger/mytimelogger.user.js
@@ -13,7 +13,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '0.4.0';
+  const VERSION = '0.5.0';
   const INSTALL_URL = 'https://efrag-eu.github.io/MyTimeLogger/';
   const UPDATE_REMINDER_MS = 14 * 24 * 60 * 60 * 1000;
   const LAST_UPDATE_CHECK_KEY = 'mytimelogger.lastUpdateCheck';
@@ -491,6 +491,15 @@
           checkField(weekSetWorking, 'Set the same working status (e.g. Working, Teleworking) on target days without a status'),
           checkField(weekReplace, replaceLabel)],
         buttonLabel: 'Preview',
+        shortcuts: [{
+          label: 'Copy previous week',
+          title: `Copy the week of ${formatDay(addDays(monday, -7))} to the week of ${formatDay(monday)}`,
+          apply: () => {
+            weekSource.value = addDays(monday, -7);
+            weekTarget.value = monday;
+            weekCount.value = 1;
+          },
+        }],
         plan: onProgress => planCopyWeek({
           sourceWeek: weekSource.value, targetWeek: weekTarget.value, weeks: Number(weekCount.value),
           projectsByName: context.projectsByName,
@@ -630,6 +639,11 @@
       const message = h('span', { className: 'message' });
       const result = h('div');
       const goButton = h('button', { className: 'secondary', onclick: run }, tab.buttonLabel);
+      const shortcutButtons = (tab.shortcuts ?? []).map(shortcut => h('button', {
+        className: 'secondary', title: shortcut.title,
+        onclick: () => { shortcut.apply(); run(); },
+      }, shortcut.label));
+      const setRunButtonsDisabled = disabled => [goButton, ...shortcutButtons].forEach(button => { button.disabled = disabled; });
 
       const showMessage = (text, isError = false) => {
         message.textContent = text;
@@ -638,7 +652,7 @@
 
       async function run() {
         isBusy = true;
-        goButton.disabled = true;
+        setRunButtonsDisabled(true);
         result.replaceChildren();
         try {
           if (tab.view) {
@@ -650,7 +664,7 @@
         } catch (error) {
           showMessage(error.message, true);
         } finally {
-          goButton.disabled = false;
+          setRunButtonsDisabled(false);
           isBusy = false;
         }
       }
@@ -672,7 +686,7 @@
       async function execute(plan, stateCells, executeButton) {
         isBusy = true;
         executeButton.disabled = true;
-        goButton.disabled = true;
+        setRunButtonsDisabled(true);
         let failed = 0;
         for (const [index, action] of plan.actions.entries()) {
           const cell = stateCells.get(action);
@@ -688,13 +702,13 @@
             cell.className = 'state failed';
           }
         }
-        goButton.disabled = false;
+        setRunButtonsDisabled(false);
         isBusy = false;
         const outcome = failed ? `Finished with ${failed} failed action(s).` : 'All actions done.';
         showMessage(`${outcome} Please review the result in the myProtime calendar.`, failed > 0);
       }
 
-      return [h('div', { className: 'fields' }, tab.fields), h('div', { className: 'actions' }, goButton, message), result];
+      return [h('div', { className: 'fields' }, tab.fields), h('div', { className: 'actions' }, goButton, shortcutButtons, message), result];
     }
   }
 
