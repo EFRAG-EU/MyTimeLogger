@@ -28,6 +28,9 @@ created bookmark.
 | Copy week | Copies a full week to the next week (or several following weeks): each day's entries go to the same weekday, days off in the target week are skipped. |
 | Delete | Deletes all logged project time (activities) of every day in a range, optionally also the day status. |
 
+The dates follow the myProtime calendar: open the month you want to work on (and optionally click a day)
+and the tabs preselect that month, week or day. The Overview shows the whole month.
+
 Nothing is changed before you click **Execute**. Weekends, public holidays, locked days and days with an
 absence are skipped. Days without a status are set to *Working* first (can be switched off). Days that
 already have logged time are skipped unless *Replace time already logged* is ticked.

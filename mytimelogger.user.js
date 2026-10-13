@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MyTimeLogger
 // @namespace    https://efrag.myprotime.eu/
-// @version      0.3.0
+// @version      0.4.0
 // @description  Bulk project time logging for myProtime
 // @match        https://efrag.myprotime.eu/*
 // @updateURL    https://efrag-eu.github.io/MyTimeLogger/mytimelogger.user.js
@@ -13,7 +13,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '0.3.0';
+  const VERSION = '0.4.0';
   const INSTALL_URL = 'https://efrag-eu.github.io/MyTimeLogger/';
   const UPDATE_REMINDER_MS = 14 * 24 * 60 * 60 * 1000;
   const LAST_UPDATE_CHECK_KEY = 'mytimelogger.lastUpdateCheck';
@@ -25,6 +25,7 @@
   const ABSENCE_RETRY_DELAY_MS = 1500;
   const ABSENCE_MAX_RETRIES = 10;
   const MAX_RANGE_DAYS = 62;
+  const CALENDAR_POLL_MS = 1000;
 
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -35,11 +36,32 @@
   const toDmy = iso => iso.split('-').reverse().join('/');
   const isWeekend = iso => [0, 6].includes(fromIso(iso).getUTCDay());
   const mondayOf = iso => addDays(iso, -((fromIso(iso).getUTCDay() + 6) % 7));
+  const monthStartOf = iso => `${iso.slice(0, 7)}-01`;
+  const monthEndOf = iso => addDays(monthStartOf(addDays(monthStartOf(iso), 31)), -1);
+  const laterOf = (a, b) => (a > b ? a : b);
+  const earlierOf = (a, b) => (a < b ? a : b);
+  const formatMonth = iso => fromIso(iso).toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
   const formatDay = iso => fromIso(iso).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', timeZone: 'UTC' });
 
   function todayIso() {
     const now = new Date();
     return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  }
+
+  function calendarReference() {
+    const path = location.pathname;
+    const shownPeriod = /\/(?:month|week)\/(\d{4}-\d{2}-\d{2})/.exec(path)?.[1];
+    const selectedDay = /\/(?:day|absence)\/\d+\/(?:\d+\/)?(\d{4}-\d{2}-\d{2})/.exec(path)?.[1];
+    const today = todayIso();
+    const monthStart = monthStartOf(selectedDay ?? shownPeriod ?? today);
+    const day = selectedDay ?? (monthStartOf(today) === monthStart ? today : firstWeekdayOf(shownPeriod ?? monthStart));
+    return { monthStart, monthEnd: monthEndOf(monthStart), day };
+  }
+
+  function firstWeekdayOf(iso) {
+    let date = iso;
+    while (isWeekend(date)) date = addDays(date, 1);
+    return date;
   }
 
   function datesBetween(from, to) {
@@ -360,6 +382,7 @@
     .fields { display: grid; grid-template-columns: 110px 1fr; gap: 8px 10px; align-items: center; }
     .fields .full { grid-column: 1 / -1; }
     .fields p { margin: 0; }
+    .calendar-hint { margin: 0 0 10px; color: #666; font-size: 12px; }
     input[type=date], input[type=text], input[type=number], select { width: 100%; padding: 5px 6px; border: 1px solid #bbb; border-radius: 4px; background: #fff; color: #222; }
     label.check { display: flex; gap: 6px; align-items: center; }
     .actions { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
@@ -404,27 +427,28 @@
       group('All projects', projects.all));
   }
 
-  function buildTabs(context) {
-    const today = todayIso();
-    const monday = mondayOf(today);
-    const friday = addDays(monday, 4);
+  function buildTabs(context, { monthStart, monthEnd, day }) {
+    const monday = mondayOf(day);
+    const weekStart = laterOf(monday, monthStart);
+    const weekEnd = earlierOf(addDays(monday, 4), monthEnd);
+    const nextDay = addDays(day, 1);
 
-    const overviewFrom = dateInput(monday), overviewTo = dateInput(addDays(monday, 6));
+    const overviewFrom = dateInput(monthStart), overviewTo = dateInput(monthEnd);
 
-    const logFrom = dateInput(monday), logTo = dateInput(friday);
+    const logFrom = dateInput(weekStart), logTo = dateInput(weekEnd);
     const logProject = projectSelect(context.projects);
     const logHours = h('input', { type: 'text', placeholder: 'empty = scheduled hours (e.g. 8:00)' });
     const logSetWorking = checkbox(true), logReplace = checkbox(false);
 
-    const copySource = dateInput(today), copyFrom = dateInput(addDays(today, 1));
-    const copyTo = dateInput(friday > today ? friday : addDays(today, 1));
+    const copySource = dateInput(day), copyFrom = dateInput(nextDay);
+    const copyTo = dateInput(laterOf(weekEnd, nextDay));
     const copySetWorking = checkbox(true), copyReplace = checkbox(false);
 
     const weekSource = dateInput(monday), weekTarget = dateInput(addDays(monday, 7));
     const weekCount = h('input', { type: 'number', min: 1, max: 8, value: 1 });
     const weekSetWorking = checkbox(true), weekReplace = checkbox(false);
 
-    const deleteFrom = dateInput(monday), deleteTo = dateInput(friday);
+    const deleteFrom = dateInput(weekStart), deleteTo = dateInput(weekEnd);
     const deleteStatus = checkbox(false);
 
     const setWorkingLabel = 'Set status "Working" on weekdays that have no status yet';
@@ -545,6 +569,7 @@
     const panel = h('div', { className: 'panel', hidden: true });
     root.append(h('style', {}, STYLE), h('button', { className: 'launcher', onclick: toggle }, 'Time Logger'), panel);
     let initialized = false;
+    let isBusy = false;
 
     async function toggle() {
       panel.hidden = !panel.hidden;
@@ -571,7 +596,9 @@
     }
 
     function render(context) {
-      const tabs = buildTabs(context);
+      let reference = calendarReference();
+      let tabs = buildTabs(context, reference);
+      let selectedIndex = 0;
       const tabButtons = tabs.map((tab, index) => h('button', { onclick: () => select(index) }, tab.title));
       const body = h('div', { className: 'body' });
       const header = h('header', {},
@@ -579,10 +606,22 @@
         h('button', { className: 'close', title: 'Close', onclick: () => { panel.hidden = true; } }, '×'));
 
       function select(index) {
+        selectedIndex = index;
         tabButtons.forEach((button, i) => button.classList.toggle('active', i === index));
-        body.replaceChildren(...renderTab(tabs[index]));
+        const hint = h('p', { className: 'calendar-hint' }, `Dates follow the myProtime calendar: ${formatMonth(reference.monthStart)}`);
+        body.replaceChildren(hint, ...renderTab(tabs[index]));
       }
 
+      function followCalendar() {
+        if (panel.hidden || isBusy) return;
+        const current = calendarReference();
+        if (current.monthStart === reference.monthStart && current.day === reference.day) return;
+        reference = current;
+        tabs = buildTabs(context, reference);
+        select(selectedIndex);
+      }
+
+      setInterval(followCalendar, CALENDAR_POLL_MS);
       select(0);
       return [header, h('nav', {}, tabButtons), body];
     }
@@ -598,6 +637,7 @@
       };
 
       async function run() {
+        isBusy = true;
         goButton.disabled = true;
         result.replaceChildren();
         try {
@@ -611,6 +651,7 @@
           showMessage(error.message, true);
         } finally {
           goButton.disabled = false;
+          isBusy = false;
         }
       }
 
@@ -629,6 +670,7 @@
       }
 
       async function execute(plan, stateCells, executeButton) {
+        isBusy = true;
         executeButton.disabled = true;
         goButton.disabled = true;
         let failed = 0;
@@ -647,6 +689,7 @@
           }
         }
         goButton.disabled = false;
+        isBusy = false;
         const outcome = failed ? `Finished with ${failed} failed action(s).` : 'All actions done.';
         showMessage(`${outcome} Please review the result in the myProtime calendar.`, failed > 0);
       }
