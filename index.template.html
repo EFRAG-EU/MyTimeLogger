@@ -62,11 +62,11 @@
     <ol>
       <li>Show the bookmarks bar: press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd> (Edge: favourites bar).</li>
       <li>Drag this button onto the bookmarks bar:<br>
-        <a class="bookmarklet" href="{{BOOKMARKLET}}" onclick="alert('Drag this button to your bookmarks bar instead of clicking it.'); return false;">Time Logger</a></li>
+        <a class="bookmarklet" href="{{BOOKMARKLET}}" onclick="alert('Drag this button to your bookmarks bar instead of clicking it.'); return false;">Time Logger Helper</a></li>
     </ol>
 
     <figure class="illustration">
-      <svg viewBox="0 0 640 320" role="img" aria-label="Illustration: press and hold the blue Time Logger button on this page, drag it up and drop it on the bookmarks bar below the address bar.">
+      <svg viewBox="0 0 640 320" role="img" aria-label="Illustration: press and hold the blue Time Logger Helper button on this page, drag it up and drop it on the bookmarks bar below the address bar.">
         <defs>
           <marker id="arrowhead" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
             <path d="M0 0 L10 5 L0 10 z" class="accent-fill"/>
@@ -83,27 +83,27 @@
         <line x1="10" y1="110" x2="630" y2="110" class="divider"/>
         <rect x="26" y="90" width="10" height="10" rx="2" class="muted-fill"/><text x="41" y="99" class="small muted">News</text>
         <rect x="88" y="90" width="10" height="10" rx="2" class="muted-fill"/><text x="103" y="99" class="small muted">Intranet</text>
-        <rect x="172" y="86" width="104" height="20" rx="5" class="drop-target"/>
+        <rect x="172" y="86" width="142" height="20" rx="5" class="drop-target"/>
         <rect x="181" y="91" width="10" height="10" rx="2" class="accent-fill"/>
-        <text x="196" y="100" class="small accent-text strong">Time Logger</text>
-        <text x="290" y="100" class="small muted">← bookmarks / favourites bar (Ctrl+Shift+B)</text>
+        <text x="196" y="100" class="small accent-text strong">Time Logger Helper</text>
+        <text x="326" y="100" class="small muted">← bookmarks / favourites bar (Ctrl+Shift+B)</text>
         <text x="60" y="150" class="heading">MyTimeLogger</text>
         <rect x="60" y="162" width="150" height="8" rx="4" class="placeholder"/>
         <rect x="60" y="178" width="110" height="8" rx="4" class="placeholder"/>
-        <rect x="60" y="208" width="124" height="36" rx="18" class="accent-fill"/>
-        <text x="116" y="231" text-anchor="middle" class="button-text">Time Logger</text>
-        <path d="M188 222 C 268 214, 262 156, 230 116" class="drag-path" marker-end="url(#arrowhead)"/>
-        <path d="M172 232 v24 l6 -6 l5 10 l5 -2.4 l-5 -10 h8.5 z" class="cursor"/>
-        <text x="272" y="182" class="label">Press and hold the button,</text>
-        <text x="272" y="202" class="label">drag it up and drop it on the bar</text>
-        <text x="272" y="226" class="small muted">Then click it while myProtime is open.</text>
+        <rect x="60" y="208" width="168" height="36" rx="18" class="accent-fill"/>
+        <text x="138" y="231" text-anchor="middle" class="button-text">Time Logger Helper</text>
+        <path d="M232 222 C 300 214, 286 156, 252 116" class="drag-path" marker-end="url(#arrowhead)"/>
+        <path d="M216 232 v24 l6 -6 l5 10 l5 -2.4 l-5 -10 h8.5 z" class="cursor"/>
+        <text x="320" y="182" class="label">Press and hold the button,</text>
+        <text x="320" y="202" class="label">drag it up and drop it on the bar</text>
+        <text x="320" y="226" class="small muted">Then click it while myProtime is open.</text>
       </svg>
     </figure>
 
     <h2>Use</h2>
     <ol>
       <li>Open <a href="https://efrag.myprotime.eu/" target="_blank" rel="noopener">efrag.myprotime.eu</a> and log in as usual.</li>
-      <li>Click <b>Time Logger</b> in your bookmarks bar. The panel opens on the right; click it again to hide it.</li>
+      <li>Click <b>Time Logger Helper</b> in your bookmarks bar. The panel opens on the right; click it again to hide it.</li>
       <li>Choose a tab and click its button (e.g. <b>Log time</b>). The changes are listed first; nothing is saved until you click <b>Confirm</b>.</li>
     </ol>
     <p class="muted">After reloading the myProtime page, click the bookmark again.</p>
@@ -118,7 +118,7 @@
 
   <h2>Dragging does not work?</h2>
   <p>Create a new bookmark manually (right-click the bookmarks bar → <i>Add page</i> / <i>Add favourite</i>), name it
-    <b>Time Logger</b> and paste the following text as its URL:</p>
+    <b>Time Logger Helper</b> and paste the following text as its URL:</p>
   <textarea id="code" readonly>{{BOOKMARKLET}}</textarea>
   <button type="button" onclick="copyCode(this)">Copy to clipboard</button>
 
@@ -145,7 +145,7 @@
     status.classList.toggle('outdated', isOutdated);
     status.innerHTML = isOutdated
       ? `<b>A new version is available.</b> You have version ${installed}, the latest is ${LATEST_VERSION}.
-         Delete your old <b>Time Logger</b> bookmark and drag the new button below onto the bookmarks bar.`
+         Delete your old <b>Time Logger Helper</b> (or <b>Time Logger</b>) bookmark and drag the new button below onto the bookmarks bar.`
       : `<b>You have the latest version</b> (${LATEST_VERSION}). Nothing to do.`;
     status.hidden = false;
   }

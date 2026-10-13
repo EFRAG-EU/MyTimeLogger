@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MyTimeLogger
 // @namespace    https://efrag.myprotime.eu/
-// @version      0.7.0
+// @version      0.8.0
 // @description  Bulk project time logging for myProtime
 // @match        https://efrag.myprotime.eu/*
 // @updateURL    https://efrag-eu.github.io/MyTimeLogger/mytimelogger.user.js
@@ -13,7 +13,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '0.7.0';
+  const VERSION = '0.8.0';
   const INSTALL_URL = 'https://efrag-eu.github.io/MyTimeLogger/';
   const UPDATE_REMINDER_MS = 14 * 24 * 60 * 60 * 1000;
   const LAST_UPDATE_CHECK_KEY = 'mytimelogger.lastUpdateCheck';
@@ -484,10 +484,10 @@
   const STYLE = `
     :host { all: initial; }
     * { box-sizing: border-box; font-family: Segoe UI, Roboto, Arial, sans-serif; font-size: 13px; }
-    .launcher { position: fixed; right: 20px; bottom: 20px; z-index: 2147483000; padding: 10px 16px; border: 0; border-radius: 20px;
+    .launcher { position: fixed; right: 20px; bottom: 96px; z-index: 2147483000; padding: 10px 16px; border: 0; border-radius: 20px;
       background: #1f5fa8; color: #fff; font-weight: 600; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
     .launcher:hover { background: #174a85; }
-    .panel { position: fixed; right: 20px; bottom: 70px; z-index: 2147483000; width: min(620px, calc(100vw - 40px)); max-height: calc(100vh - 100px);
+    .panel { position: fixed; right: 20px; top: 72px; z-index: 2147483000; width: min(620px, calc(100vw - 40px)); max-height: calc(100vh - 92px);
       display: flex; flex-direction: column; background: #fff; color: #222; border-radius: 8px; box-shadow: 0 6px 24px rgba(0,0,0,.3); }
     .panel[hidden] { display: none; }
     header { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid #e3e3e3; }
@@ -711,7 +711,7 @@
     document.body.append(host);
 
     const panel = h('div', { className: 'panel', hidden: true });
-    root.append(h('style', {}, STYLE), h('button', { className: 'launcher', onclick: toggle }, 'Time Logger'), panel);
+    root.append(h('style', {}, STYLE), h('button', { className: 'launcher', onclick: toggle }, 'Time Logger Helper'), panel);
     let initialized = false;
     let isBusy = false;
 

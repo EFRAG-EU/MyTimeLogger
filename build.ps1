@@ -8,7 +8,7 @@ if ($script -notmatch "const VERSION = '$([regex]::Escape($version))';") {
 
 $compactScript = ($script -split "`r?`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ }) -join "`n"
 
-$wrapped = "(()=>{if(location.hostname!=='efrag.myprotime.eu'){alert('Open https://efrag.myprotime.eu and log in, then click Time Logger again.');return;}`n" +
+$wrapped = "(()=>{if(location.hostname!=='efrag.myprotime.eu'){alert('Open https://efrag.myprotime.eu and log in, then click Time Logger Helper again.');return;}`n" +
     $compactScript +
     "`ndocument.getElementById('mytimelogger').dispatchEvent(new Event('mytimelogger:toggle'));})();void 0"
 $bookmarklet = 'javascript:' + [Uri]::EscapeDataString($wrapped)

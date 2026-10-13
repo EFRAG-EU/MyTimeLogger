@@ -1,6 +1,6 @@
 # MyTimeLogger
 
-A **Time Logger** panel for [myProtime](https://efrag.myprotime.eu/) for logging project time for a whole
+A **Time Logger Helper** panel for [myProtime](https://efrag.myprotime.eu/) for logging project time for a whole
 week in a few clicks. It runs as a browser bookmark: nothing to install, no extension,
 no passwords or tokens to enter. It works in Edge, Chrome and Firefox.
 
@@ -8,7 +8,7 @@ no passwords or tokens to enter. It works in Edge, Chrome and Firefox.
 
 1. Open the install page: **https://efrag-eu.github.io/MyTimeLogger/**
 2. Show the bookmarks bar with <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd> (in Edge: favourites bar).
-3. Drag the blue **Time Logger** button from the page onto the bookmarks bar.
+3. Drag the blue **Time Logger Helper** button from the page onto the bookmarks bar.
 
 If dragging does not work, the install page also shows the bookmark text to copy and paste into a manually
 created bookmark.
@@ -16,7 +16,7 @@ created bookmark.
 ## Use
 
 1. Open https://efrag.myprotime.eu/ and log in as usual.
-2. Click **Time Logger** in the bookmarks bar. The panel opens at the bottom right; clicking the bookmark
+2. Click **Time Logger Helper** in the bookmarks bar. The panel opens at the top right; clicking the bookmark
    again hides it. After reloading the myProtime page, click the bookmark again.
 3. Choose a tab and click its button (e.g. **Log time**). The changes are listed first; nothing is saved until you
    click **Confirm**.
@@ -55,7 +55,7 @@ The panel header shows your version and a **Check for updates** link, which open
 tells you whether a newer version is available. Every two weeks the link is highlighted as a reminder.
 (myProtime's security settings do not allow the panel to check GitHub by itself.)
 
-To update, delete the old **Time Logger** bookmark and drag the new button from the
+To update, delete the old **Time Logger Helper** (or **Time Logger**) bookmark and drag the new button from the
 [install page](https://efrag-eu.github.io/MyTimeLogger/) onto the bookmarks bar.
 Tampermonkey users are updated automatically.
 
@@ -67,7 +67,7 @@ Tampermonkey users are updated automatically.
   Commit both files; the install page updates a minute after pushing to `main`. If PowerShell refuses to
   run the script, use `powershell -ExecutionPolicy Bypass -File build.ps1`.
 - `mytimelogger.user.js` can also be installed directly as a userscript (e.g. Tampermonkey) from
-  https://efrag-eu.github.io/MyTimeLogger/mytimelogger.user.js, which shows the Time Logger button on every
+  https://efrag-eu.github.io/MyTimeLogger/mytimelogger.user.js, which shows the Time Logger Helper button on every
   myProtime page without clicking a bookmark and updates automatically.
 - The tool uses the same internal requests as the myProtime website (`/api/...`, `/bff/...`) with the
   user's own session. The official [ProTime API](https://documentation.myprotime.eu/protimeapi/) only
